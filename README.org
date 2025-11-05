@@ -276,6 +276,16 @@ Start a specific agent shell session directly:
 - =M-x agent-shell-goose-start-agent= - Start a Goose agent session
 - =M-x agent-shell-qwen-start= - Start a Qwen Code agent session
 
+*** Working with Regions
+
+Send selected code or text to your agent:
+
+- =M-x agent-shell-add-region= - Add the selected region to the agent shell buffer with file metadata and line numbers. The text is inserted but not submitted, allowing you to add additional context or instructions before sending.
+
+- =M-x agent-shell-send-region= - Send the selected region directly to the agent and submit immediately. The region content is sent as a prompt without formatting or metadata.
+
+Both commands use the last accessed agent shell buffer in the current project. These are useful for getting help with specific code sections or asking questions about selected text.
+
 ** Running agents in Devcontainers / Docker containers (Experimental)
 
 =agent-shell= provides rudimentary support for running agents and shell commands in containers.

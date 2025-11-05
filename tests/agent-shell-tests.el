@@ -638,5 +638,149 @@ output with spaces
 code block content
 ```")))))
 
+(ert-deftest agent-shell-send-region-test ()
+  "Test `agent-shell-send-region' function."
+  ;; Test with a specific buffer
+  (let ((test-buffer (generate-new-buffer "*test-agent*"))
+        (source-buffer (generate-new-buffer "*source*"))
+        (submitted nil))
+    (unwind-protect
+        (progn
+          ;; Set up source buffer with content and region
+          (with-current-buffer source-buffer
+            (insert "Line 1\nLine 2\nLine 3\n")
+            (goto-char (point-min))
+            (set-mark (point))
+            (forward-line 2)
+            (activate-mark))
+
+          ;; Mock functions
+          (cl-letf (((symbol-function 'agent-shell-project-buffers)
+                     (lambda () (list test-buffer)))
+                    ((symbol-function 'agent-shell--display-buffer)
+                     (lambda (_buffer) nil))
+                    ((symbol-function 'shell-maker-busy)
+                     (lambda () nil))
+                    ((symbol-function 'shell-maker-submit)
+                     (lambda () (setq submitted t)))
+                    ((symbol-function 'derived-mode-p)
+                     (lambda (&rest _) t)))
+
+            ;; Test sending region to specific buffer
+            (with-current-buffer source-buffer
+              (agent-shell-send-region test-buffer))
+
+            ;; Verify content was inserted
+            (with-current-buffer test-buffer
+              (should (string-match-p "Line 1\nLine 2\nLine 3\n" (buffer-string))))
+
+            ;; Verify submit was called
+            (should submitted)))
+
+      ;; Cleanup
+      (kill-buffer test-buffer)
+      (kill-buffer source-buffer))))
+
+(ert-deftest agent-shell-send-region-no-buffer-test ()
+  "Test `agent-shell-send-region' with no buffer argument."
+  (let ((test-buffer (generate-new-buffer "*test-agent*"))
+        (source-buffer (generate-new-buffer "*source*"))
+        (submitted nil))
+    (unwind-protect
+        (progn
+          ;; Set up source buffer with content and region
+          (with-current-buffer source-buffer
+            (insert "Test content\n")
+            (goto-char (point-min))
+            (set-mark (point))
+            (goto-char (point-max))
+            (activate-mark))
+
+          ;; Mock functions
+          (cl-letf (((symbol-function 'agent-shell-project-buffers)
+                     (lambda () (list test-buffer)))
+                    ((symbol-function 'agent-shell--display-buffer)
+                     (lambda (_buffer) nil))
+                    ((symbol-function 'shell-maker-busy)
+                     (lambda () nil))
+                    ((symbol-function 'shell-maker-submit)
+                     (lambda () (setq submitted t)))
+                    ((symbol-function 'derived-mode-p)
+                     (lambda (&rest _) t)))
+
+            ;; Test sending region without specifying buffer
+            (with-current-buffer source-buffer
+              (agent-shell-send-region))
+
+            ;; Verify content was inserted
+            (with-current-buffer test-buffer
+              (should (string= "Test content\n" (buffer-string))))
+
+            ;; Verify submit was called
+            (should submitted)))
+
+      ;; Cleanup
+      (kill-buffer test-buffer)
+      (kill-buffer source-buffer))))
+
+(ert-deftest agent-shell-send-region-no-region-test ()
+  "Test `agent-shell-send-region' with no active region."
+  (let ((test-buffer (generate-new-buffer "*test-agent*"))
+        (source-buffer (generate-new-buffer "*source*")))
+    (unwind-protect
+        (progn
+          ;; Set up source buffer without active region
+          (with-current-buffer source-buffer
+            (insert "Test content\n")
+            (deactivate-mark))
+
+          ;; Mock functions
+          (cl-letf (((symbol-function 'agent-shell-project-buffers)
+                     (lambda () (list test-buffer)))
+                    ((symbol-function 'shell-maker-busy)
+                     (lambda () nil))
+                    ((symbol-function 'derived-mode-p)
+                     (lambda (&rest _) t)))
+
+            ;; Should error with no region
+            (with-current-buffer source-buffer
+              (should-error (agent-shell-send-region)
+                            :type 'user-error))))
+
+      ;; Cleanup
+      (kill-buffer test-buffer)
+      (kill-buffer source-buffer))))
+
+(ert-deftest agent-shell-send-region-busy-test ()
+  "Test `agent-shell-send-region' when shell is busy."
+  (let ((test-buffer (generate-new-buffer "*test-agent*"))
+        (source-buffer (generate-new-buffer "*source*")))
+    (unwind-protect
+        (progn
+          ;; Set up source buffer with content and region
+          (with-current-buffer source-buffer
+            (insert "Test content\n")
+            (goto-char (point-min))
+            (set-mark (point))
+            (goto-char (point-max))
+            (activate-mark))
+
+          ;; Mock functions with shell-maker-busy returning t
+          (cl-letf (((symbol-function 'agent-shell-project-buffers)
+                     (lambda () (list test-buffer)))
+                    ((symbol-function 'shell-maker-busy)
+                     (lambda () t))
+                    ((symbol-function 'derived-mode-p)
+                     (lambda (&rest _) t)))
+
+            ;; Should error when busy
+            (with-current-buffer source-buffer
+              (should-error (agent-shell-send-region)
+                            :type 'user-error))))
+
+      ;; Cleanup
+      (kill-buffer test-buffer)
+      (kill-buffer source-buffer))))
+
 (provide 'agent-shell-tests)
 ;;; agent-shell-tests.el ends here

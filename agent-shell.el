@@ -2841,6 +2841,26 @@ Returns an alist with insertion details or nil otherwise:
                      "???"))))
     (agent-shell-insert :text text)))
 
+(cl-defun agent-shell-send-region (&optional buffer)
+  "Send region to agent shell BUFFER prompt and submit immediately.
+
+If BUFFER is nil, use the last accessed shell buffer in project.
+The region content is sent as a prompt without any formatting or metadata."
+  (interactive)
+  (let* ((shell-buffer (or buffer
+                           (seq-first (agent-shell-project-buffers))
+                           (user-error "No agent shell buffers available for current project")))
+         (region (or (agent-shell--get-region :deactivate t)
+                     (user-error "No region selected")))
+         (content (map-elt region :content)))
+    (with-current-buffer shell-buffer
+      (when (shell-maker-busy)
+        (user-error "Busy, try later"))
+      (goto-char (point-max))
+      (insert content)
+      (shell-maker-submit))
+    (agent-shell--display-buffer shell-buffer)))
+
 (cl-defun agent-shell--get-region (&key deactivate)
   "Get the active region as an alist.
 
